@@ -1,36 +1,12 @@
-import pandas as pd
-from typing import Optional, Tuple
 from langgraph.graph import StateGraph, END
-from typing import Optional, Tuple, TypedDict, Annotated, Sequence
-from pydantic import BaseModel
+from typing import TypedDict, Annotated, Sequence
 from langchain_core.messages import BaseMessage
 import operator
-from langfuse.decorators import langfuse_context, observe
 from langfuse.callback import CallbackHandler
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import ChatPromptTemplate
-from helpers.custom_llm_helper import CustomLLM
+from langchain.chat_models import ChatOpenAI
 
-
-
-def test_method(question):
-    llm = CustomLLM()
-    prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", "you are an AI bot who can classify"),
-                ("user", "classify input either in sports or other category, input: {question}"),
-            ]
-        )
-    print(prompt)
-    retrieval_chain = (
-    {"question": RunnablePassthrough()} | prompt | llm
-)
-    print(retrieval_chain)
-    output_data = retrieval_chain.invoke(
-    {"question": question},
-)
-    print(f"input : {question}")
-    print(f"output : {output_data}")
     
 def create_handler(user_identifier, trace_name):
     langfuse_handler = CallbackHandler(
@@ -45,8 +21,8 @@ def classification_agent(state):
     messages = state.get("messages")
     question = messages[-1]
     print(f"inside classification_agent {question}")
-    llm = CustomLLM()
-    # langfuse_handler = create_handler("vineet", "classification_agent")
+    llm = ChatOpenAI(temperature=0.7)
+    langfuse_handler = create_handler("vineet", "classification_agent")
     prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "you are an AI bot who can classify"),
@@ -57,23 +33,20 @@ def classification_agent(state):
         {"question": RunnablePassthrough()} | prompt | llm
     )
     output_data = retrieval_chain.invoke(
-        {"question": question}
+        {"question": question},
+        config={
+            "callbacks": [langfuse_handler],
+        },
     )
-    # output_data = retrieval_chain.invoke(
-    #     {"question": question},
-    #     config={
-    #         "callbacks": [langfuse_handler],
-    #     },
-    # )
     print(f"classification_agent output: {output_data}")
     return {"messages": [output_data]}
 
 def sports_agent(state):
     messages = state.get("messages")
     question = messages[0]
-    llm = CustomLLM()
+    llm = ChatOpenAI(temperature=0.7)
     print(f"inside sports_agent {question}")
-    # langfuse_handler = create_handler("vineet", "sports_agent")
+    langfuse_handler = create_handler("vineet", "sports_agent")
     prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "you are an AI bot who can generate more details"),
@@ -84,23 +57,20 @@ def sports_agent(state):
         {"question": RunnablePassthrough()} | prompt | llm
     )
     output_data = retrieval_chain.invoke(
-        {"question": question}
+        {"question": question},
+        config={
+            "callbacks": [langfuse_handler],
+        },
     )
-    # output_data = retrieval_chain.invoke(
-    #     {"question": question},
-    #     config={
-    #         "callbacks": [langfuse_handler],
-    #     },
-    # )
     print(f"sports_agent output {output_data}")
     return {"messages": [output_data]}
 
 def non_sports_agent(state):
     messages = state.get("messages")
     question = messages[0]
-    llm = CustomLLM()
+    llm = ChatOpenAI(temperature=0.7)
     print(f"inside non_sports_agent {non_sports_agent}")
-    # langfuse_handler = create_handler("vineet", "non_sports_agent")
+    langfuse_handler = create_handler("vineet", "non_sports_agent")
     prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "you are an AI bot who can generate more details"),
@@ -112,14 +82,11 @@ def non_sports_agent(state):
         {"question": RunnablePassthrough()} | prompt | llm
     )
     output_data = retrieval_chain.invoke(
-        {"question": question}
+        {"question": question},
+        config={
+            "callbacks": [langfuse_handler],
+        },
     )
-    # output_data = retrieval_chain.invoke(
-    #     {"question": question},
-    #     config={
-    #         "callbacks": [langfuse_handler],
-    #     },
-    # )
     print(f"non_sports_agent output {output_data}")
     return {"messages": [output_data]}
 
@@ -131,7 +98,6 @@ def _router(state):
     last_message = messages[-1]
     return last_message
 
-@observe()
 def execture_graph(input):
     inputs = {"messages": [input]}
     graph = StateGraph(AgentState)
@@ -153,8 +119,6 @@ def execture_graph(input):
     output_data = app.invoke(inputs)
     final_success_message = output_data.get("messages")[-1]
     return final_success_message
-    
 
 output = execture_graph("football")
 print(f"final outout ==> \n\n  {output}")
-# test_method("football")
