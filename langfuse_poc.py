@@ -1,11 +1,13 @@
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Annotated, Sequence
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage 
 import operator
 from langfuse.callback import CallbackHandler
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.chat_models import ChatOpenAI
+from langfuse.decorators import observe
+import argparse
 
     
 def create_handler(user_identifier, trace_name):
@@ -98,7 +100,8 @@ def _router(state):
     last_message = messages[-1]
     return last_message
 
-def execture_graph(input):
+@observe()
+def execute_graph(input):
     inputs = {"messages": [input]}
     graph = StateGraph(AgentState)
     graph.add_node("classification_agent", classification_agent)
@@ -120,5 +123,12 @@ def execture_graph(input):
     final_success_message = output_data.get("messages")[-1]
     return final_success_message
 
-output = execture_graph("football")
-print(f"final outout ==> \n\n  {output}")
+def main():
+    parser = argparse.ArgumentParser(description="give your input ")
+    parser.add_argument("--input", type=str, required=True, help="user input")
+    args = parser.parse_args()
+    result = execute_graph(args.input)
+    print(result)
+
+if __name__ == "__main__":
+    main()
